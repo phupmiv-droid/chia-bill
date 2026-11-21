@@ -26,8 +26,9 @@
     --accent:#4fc3c3; --accent-ink:#0b1a1f; --soft:#1d3338; --pos:#6fcf97; --neg:#f2998f; color-scheme:dark;
   }
   * { box-sizing:border-box; }
+  [hidden] { display:none !important; }
   body { background:var(--bg); color:var(--ink); font:15px/1.5 var(--font); margin:0;
-    padding-block:24px 56px; padding-left:max(16px, env(safe-area-inset-left, 0px)); padding-right:max(16px, env(safe-area-inset-right, 0px)); }
+    padding-block:24px 112px; padding-left:max(16px, env(safe-area-inset-left, 0px)); padding-right:max(16px, env(safe-area-inset-right, 0px)); }
   main { max-width:720px; margin:0 auto; display:flex; flex-direction:column; gap:16px; }
   h1 { font-size:1.75rem; line-height:1.15; margin:0; letter-spacing:-.01em; text-wrap:balance; }
   h2 { font-size:1rem; margin:0 0 12px; }
@@ -88,6 +89,16 @@
   .exp .a { font-weight:700; white-space:nowrap; }
   .total { display:flex; justify-content:space-between; border-top:2px solid var(--ink); margin-top:4px; padding-top:12px; font-weight:700; }
   .empty { color:var(--muted); margin:0; }
+  .err.ok { color:var(--pos); }
+  .hint { margin:12px 0 0; }
+  #resultCard { border:2px solid var(--accent); scroll-margin-top:16px; }
+  .bar { position:fixed; left:0; right:0; bottom:0; z-index:5; background:var(--surface); border-top:1px solid var(--line);
+    padding-block:12px calc(12px + env(safe-area-inset-bottom, 0px));
+    padding-left:max(16px, env(safe-area-inset-left, 0px)); padding-right:max(16px, env(safe-area-inset-right, 0px)); }
+  .bar-in { max-width:720px; margin:0 auto; display:flex; align-items:center; justify-content:space-between; gap:12px; }
+  .bar-info { font-weight:600; min-width:0; }
+  .bar-info small { display:block; color:var(--muted); font-weight:400; }
+  .bar button { min-height:48px; padding:0 24px; font-size:1.05rem; white-space:nowrap; }
   @media (max-width:520px) { .grid2 { grid-template-columns:1fr; } h1 { font-size:1.5rem; } }
   @media (prefers-reduced-motion: no-preference) { button { transition:filter .15s; } }
 </style>
@@ -104,8 +115,6 @@
     <span>Đây là dữ liệu ví dụ để bạn xem thử.</span>
     <button type="button" id="resetBtn">Xoá ví dụ, bắt đầu mới</button>
   </div>
-
-  <section class="card" id="resultCard" aria-live="polite"></section>
 
   <section class="card">
     <h2>1. Ai trong nhóm?</h2>
@@ -139,9 +148,19 @@
   </section>
 
   <section class="card">
-    <h2>Các khoản đã chi</h2>
+    <h2>3. Các khoản đã chi</h2>
     <div id="expList"></div>
+    <p class="hint muted small" id="listHint">Nhập đủ các khoản chi rồi bấm nút <strong>Chia tiền</strong> ở thanh phía dưới màn hình.</p>
   </section>
+
+  <section class="card" id="resultCard" aria-live="polite" hidden></section>
+
+  <div class="bar" id="bar" hidden>
+    <div class="bar-in">
+      <div class="bar-info" id="barInfo"></div>
+      <button type="button" class="primary" id="calcBtn">Chia tiền →</button>
+    </div>
+  </div>
 
   <p class="small muted" style="text-align:center;margin:0">Dữ liệu chỉ lưu trong trình duyệt của bạn, không gửi đi đâu.</p>
 </main>
@@ -167,6 +186,7 @@
     };
   }
 
+  var showResult = false;
   var state;
   try { state = JSON.parse(localStorage.getItem(KEY)); } catch (e) {}
   if (!state || !Array.isArray(state.people) || !Array.isArray(state.expenses)) state = sample();
@@ -217,11 +237,9 @@
 
   function renderResult(c) {
     var el = $("resultCard");
-    if (!state.expenses.length) {
-      el.innerHTML = "<h2>Kết quả</h2><p class='empty'>Thêm vài người và khoản chi, kết quả ai trả ai sẽ hiện ở đây.</p>";
-      return;
-    }
-    var h = "<h2>Ai cần trả ai?</h2>";
+    el.hidden = !(showResult && state.expenses.length);
+    if (el.hidden) { el.innerHTML = ""; return; }
+    var h = "<h2>Kết quả: ai cần trả ai?</h2>";
     if (!c.tx.length) h += "<div class='done'>Mọi người đã huề nhau, không ai nợ ai.</div>";
     else {
       h += "<ul class='settle'>" + c.tx.map(function (t) {
@@ -286,6 +304,9 @@
     $("banner").hidden = !state.example;
     renderPeople();
     var c = compute();
+    $("bar").hidden = !state.expenses.length;
+    $("listHint").hidden = !state.expenses.length;
+    $("barInfo").innerHTML = state.expenses.length + " khoản chi<small>Tổng " + money(c.total) + "</small>";
     renderResult(c);
     renderExpenses(c);
   }
@@ -319,6 +340,7 @@
   $("expForm").addEventListener("submit", function (ev) {
     ev.preventDefault();
     var err = $("expErr"), title = $("expTitle").value.trim(), amount = parseMoney($("expAmount").value);
+    err.className = "err";
     var shares = Array.prototype.map.call(document.querySelectorAll("#expShares input:checked"), function (i) { return i.value; });
     if (state.people.length < 2) { err.textContent = "Cần ít nhất 2 người trong nhóm."; return; }
     if (!title) { err.textContent = "Hãy nhập chi cho việc gì."; return; }
@@ -328,9 +350,17 @@
     state.expenses.push({id:uid(), title:title, amount:amount, payer:$("expPayer").value, shares:shares});
     $("expTitle").value = ""; $("expAmount").value = "";
     save(); render(); $("expTitle").focus();
+    err.className = "err ok";
+    err.textContent = "Đã thêm “" + title + "”. Thêm khoản khác hoặc bấm Chia tiền ở thanh dưới.";
   });
 
-  $("resetBtn").onclick = function () { state = {example:false, people:[], expenses:[]}; save(); render(); $("personName").focus(); };
+  $("calcBtn").onclick = function () {
+    showResult = true; render();
+    var reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+    $("resultCard").scrollIntoView({behavior: reduce ? "auto" : "smooth", block: "start"});
+  };
+
+  $("resetBtn").onclick = function () { state = {example:false, people:[], expenses:[]}; showResult = false; save(); render(); $("personName").focus(); };
 
   render();
 })();
