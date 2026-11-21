@@ -90,7 +90,8 @@
   .total { display:flex; justify-content:space-between; border-top:2px solid var(--ink); margin-top:4px; padding-top:12px; font-weight:700; }
   .empty { color:var(--muted); margin:0; }
   .err.ok { color:var(--pos); }
-  .hint { margin:12px 0 0; }
+  .hint { margin:12px 0 8px; }
+  button.wide { width:100%; min-height:52px; font-size:1.05rem; }
   #resultCard { border:2px solid var(--accent); scroll-margin-top:16px; }
   .bar { position:fixed; left:0; right:0; bottom:0; z-index:5; background:var(--surface); border-top:1px solid var(--line);
     padding-block:12px calc(12px + env(safe-area-inset-bottom, 0px));
@@ -150,7 +151,10 @@
   <section class="card">
     <h2>3. Các khoản đã chi</h2>
     <div id="expList"></div>
-    <p class="hint muted small" id="listHint">Nhập đủ các khoản chi rồi bấm nút <strong>Chia tiền</strong> ở thanh phía dưới màn hình.</p>
+    <div id="listFoot">
+      <p class="hint muted small">Đã nhập đủ các khoản chi? Bấm nút bên dưới để xem ai cần trả ai.</p>
+      <button type="button" class="primary wide" id="calcBtn2">Chia tiền →</button>
+    </div>
   </section>
 
   <section class="card" id="resultCard" aria-live="polite" hidden></section>
@@ -305,7 +309,7 @@
     renderPeople();
     var c = compute();
     $("bar").hidden = !state.expenses.length;
-    $("listHint").hidden = !state.expenses.length;
+    $("listFoot").hidden = !state.expenses.length;
     $("barInfo").innerHTML = state.expenses.length + " khoản chi<small>Tổng " + money(c.total) + "</small>";
     renderResult(c);
     renderExpenses(c);
@@ -354,11 +358,13 @@
     err.textContent = "Đã thêm “" + title + "”. Thêm khoản khác hoặc bấm Chia tiền ở thanh dưới.";
   });
 
-  $("calcBtn").onclick = function () {
+  function calc() {
     showResult = true; render();
     var reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
     $("resultCard").scrollIntoView({behavior: reduce ? "auto" : "smooth", block: "start"});
-  };
+  }
+  $("calcBtn").onclick = calc;
+  $("calcBtn2").onclick = calc;
 
   $("resetBtn").onclick = function () { state = {example:false, people:[], expenses:[]}; showResult = false; save(); render(); $("personName").focus(); };
 
