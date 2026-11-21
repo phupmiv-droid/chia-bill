@@ -1,0 +1,339 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Chia Bill: nhập ai chi gì trong nhóm, app tính ai cần trả ai bao nhiêu.">
+<title>Chia Bill</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap">
+<style>
+  /* Layout: một cột hẹp như tờ hoá đơn; kết quả "ai trả ai" nằm trên cùng, form thêm khoản chi ngay dưới. */
+  :root {
+    --bg:#eef2f4; --surface:#ffffff; --ink:#14232b; --muted:#5b6b74; --line:#d5dde1;
+    --accent:#0b6e6e; --accent-ink:#ffffff; --soft:#e3f0f0; --pos:#1a7f45; --neg:#b3261e;
+    --font:"Be Vietnam Pro",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg:#0f1a1f; --surface:#17262d; --ink:#e6eef1; --muted:#93a5ae; --line:#2a3b43;
+      --accent:#4fc3c3; --accent-ink:#0b1a1f; --soft:#1d3338; --pos:#6fcf97; --neg:#f2998f; color-scheme:dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg:#0f1a1f; --surface:#17262d; --ink:#e6eef1; --muted:#93a5ae; --line:#2a3b43;
+    --accent:#4fc3c3; --accent-ink:#0b1a1f; --soft:#1d3338; --pos:#6fcf97; --neg:#f2998f; color-scheme:dark;
+  }
+  * { box-sizing:border-box; }
+  body { background:var(--bg); color:var(--ink); font:15px/1.5 var(--font); margin:0;
+    padding-block:24px 56px; padding-left:max(16px, env(safe-area-inset-left, 0px)); padding-right:max(16px, env(safe-area-inset-right, 0px)); }
+  main { max-width:720px; margin:0 auto; display:flex; flex-direction:column; gap:16px; }
+  h1 { font-size:1.75rem; line-height:1.15; margin:0; letter-spacing:-.01em; text-wrap:balance; }
+  h2 { font-size:1rem; margin:0 0 12px; }
+  .tag { color:var(--muted); margin:4px 0 0; }
+  .card { background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:16px; min-width:0; }
+  .muted { color:var(--muted); }
+  .small { font-size:.85rem; }
+  .num { font-variant-numeric:tabular-nums; }
+
+  input[type=text], input[type=number], select {
+    width:100%; font:inherit; color:inherit; background:var(--bg); border:1px solid var(--line);
+    border-radius:10px; padding:10px 12px; min-height:44px;
+  }
+  input:focus-visible, select:focus-visible, button:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+  label.f { display:flex; flex-direction:column; gap:4px; font-weight:500; font-size:.85rem; min-width:0; }
+  button { font:inherit; font-weight:600; min-height:44px; padding:0 16px; border-radius:10px; border:1px solid var(--line);
+    background:var(--surface); color:var(--ink); cursor:pointer; }
+  button.primary { background:var(--accent); border-color:var(--accent); color:var(--accent-ink); }
+  button.ghost { border-color:transparent; background:transparent; color:var(--muted); min-height:36px; padding:0 8px; }
+  button:hover { filter:brightness(.96); }
+
+  .banner { display:flex; flex-wrap:wrap; gap:8px 12px; align-items:center; justify-content:space-between;
+    background:var(--soft); border-radius:12px; padding:10px 14px; font-size:.85rem; }
+  .banner button { min-height:36px; }
+
+  .people-row { display:flex; gap:8px; }
+  .people-row input { flex:1; }
+  .chips { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
+  .chip { display:inline-flex; align-items:center; gap:2px; background:var(--soft); border-radius:999px; padding:2px 4px 2px 12px; font-weight:500; }
+  .chip button { min-height:28px; width:28px; padding:0; border-radius:50%; background:transparent; border:0; color:var(--muted); font-size:1.1rem; line-height:1; }
+
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .full { grid-column:1 / -1; }
+  fieldset { border:0; padding:0; margin:0; min-width:0; }
+  legend { font-weight:500; font-size:.85rem; padding:0; margin-bottom:6px; }
+  .checks { display:flex; flex-wrap:wrap; gap:8px; }
+  .checks label { display:inline-flex; align-items:center; gap:6px; border:1px solid var(--line); border-radius:999px; padding:6px 12px; cursor:pointer; min-height:36px; }
+  .checks label:has(input:checked) { background:var(--soft); border-color:var(--accent); }
+  .checks input { accent-color:var(--accent); }
+  .err { color:var(--neg); font-size:.85rem; min-height:1.3em; margin:8px 0 0; }
+
+  .settle { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:8px; }
+  .settle li { display:flex; flex-wrap:wrap; align-items:center; gap:4px 8px; padding:12px; border-radius:10px; background:var(--soft); }
+  .settle .amt { margin-left:auto; font-weight:700; color:var(--accent); }
+  .arrow { color:var(--muted); }
+  .done { text-align:center; padding:12px 0; color:var(--pos); font-weight:600; }
+  .actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
+
+  .bal { list-style:none; margin:16px 0 0; padding:12px 0 0; border-top:1px dashed var(--line); display:flex; flex-direction:column; gap:6px; }
+  .bal li { display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+  .pos { color:var(--pos); font-weight:600; } .neg { color:var(--neg); font-weight:600; }
+
+  .exp { list-style:none; margin:0; padding:0; }
+  .exp li { display:flex; gap:12px; align-items:flex-start; padding:12px 0; border-top:1px solid var(--line); }
+  .exp li:first-child { border-top:0; padding-top:0; }
+  .exp .main { flex:1; min-width:0; }
+  .exp .t { font-weight:600; overflow-wrap:anywhere; }
+  .exp .a { font-weight:700; white-space:nowrap; }
+  .total { display:flex; justify-content:space-between; border-top:2px solid var(--ink); margin-top:4px; padding-top:12px; font-weight:700; }
+  .empty { color:var(--muted); margin:0; }
+  @media (max-width:520px) { .grid2 { grid-template-columns:1fr; } h1 { font-size:1.5rem; } }
+  @media (prefers-reduced-motion: no-preference) { button { transition:filter .15s; } }
+</style>
+
+</head>
+<body>
+<main>
+  <header>
+    <h1>Chia Bill</h1>
+    <p class="tag">Đi ăn, đi chơi, đi du lịch với nhóm bạn? Nhập ai chi gì, app tính ai cần trả ai bao nhiêu.</p>
+  </header>
+
+  <div class="banner" id="banner" hidden>
+    <span>Đây là dữ liệu ví dụ để bạn xem thử.</span>
+    <button type="button" id="resetBtn">Xoá ví dụ, bắt đầu mới</button>
+  </div>
+
+  <section class="card" id="resultCard" aria-live="polite"></section>
+
+  <section class="card">
+    <h2>1. Ai trong nhóm?</h2>
+    <form class="people-row" id="personForm">
+      <input type="text" id="personName" placeholder="Tên bạn bè, ví dụ: Linh" maxlength="24" aria-label="Tên người mới" autocomplete="off">
+      <button class="primary" type="submit">Thêm</button>
+    </form>
+    <div class="chips" id="chips"></div>
+    <p class="err" id="personErr" role="alert"></p>
+  </section>
+
+  <section class="card">
+    <h2>2. Thêm khoản chi</h2>
+    <form id="expForm" class="grid2" novalidate>
+      <label class="f" for="expTitle">Chi cho việc gì?
+        <input type="text" id="expTitle" placeholder="Ví dụ: Lẩu tối thứ 7" maxlength="40" autocomplete="off">
+      </label>
+      <label class="f" for="expAmount">Số tiền (VNĐ)
+        <input type="text" id="expAmount" inputmode="decimal" placeholder="Ví dụ: 450000 hoặc 450k" autocomplete="off">
+      </label>
+      <label class="f full" for="expPayer">Ai trả tiền trước?
+        <select id="expPayer"></select>
+      </label>
+      <fieldset class="full">
+        <legend>Chia đều cho ai?</legend>
+        <div class="checks" id="expShares"></div>
+      </fieldset>
+      <div class="full"><button class="primary" type="submit">Thêm khoản chi</button>
+        <p class="err" id="expErr" role="alert"></p></div>
+    </form>
+  </section>
+
+  <section class="card">
+    <h2>Các khoản đã chi</h2>
+    <div id="expList"></div>
+  </section>
+
+  <p class="small muted" style="text-align:center;margin:0">Dữ liệu chỉ lưu trong trình duyệt của bạn, không gửi đi đâu.</p>
+</main>
+
+<script>
+(function () {
+  var KEY = "chia-bill-v1";
+  var $ = function (id) { return document.getElementById(id); };
+  var uid = function () { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); };
+  var esc = function (s) { return String(s).replace(/[&<>"']/g, function (c) { return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; }); };
+  var money = function (n) { return Math.round(n).toLocaleString("vi-VN") + "đ"; };
+
+  function sample() {
+    var n = uid(), l = uid(), m = uid(), h = uid();
+    return {
+      example: true,
+      people: [{id:n,name:"Nam"},{id:l,name:"Linh"},{id:m,name:"Minh"},{id:h,name:"Hà"}],
+      expenses: [
+        {id:uid(),title:"Lẩu tối thứ 7",amount:640000,payer:n,shares:[n,l,m,h]},
+        {id:uid(),title:"Trà sữa",amount:180000,payer:l,shares:[n,l,m,h]},
+        {id:uid(),title:"Grab về nhà",amount:90000,payer:m,shares:[m,h]}
+      ]
+    };
+  }
+
+  var state;
+  try { state = JSON.parse(localStorage.getItem(KEY)); } catch (e) {}
+  if (!state || !Array.isArray(state.people) || !Array.isArray(state.expenses)) state = sample();
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
+
+  var nameOf = function (id) { var p = state.people.find(function (x) { return x.id === id; }); return p ? p.name : "?"; };
+
+  function parseMoney(s) {
+    s = String(s).trim().toLowerCase().replace(/\s/g, "");
+    var mult = 1;
+    if (/(tr|triệu)$/.test(s)) { mult = 1e6; s = s.replace(/(tr|triệu)$/, ""); }
+    else if (/k$/.test(s)) { mult = 1e3; s = s.slice(0, -1); }
+    if (mult > 1) s = s.replace(",", ".");
+    else s = s.replace(/[.,]/g, "");
+    var v = Number(s) * mult;
+    return isFinite(v) && v > 0 ? Math.round(v) : NaN;
+  }
+
+  function compute() {
+    var bal = {}, paid = {}, owed = {};
+    state.people.forEach(function (p) { bal[p.id] = 0; paid[p.id] = 0; owed[p.id] = 0; });
+    var total = 0;
+    state.expenses.forEach(function (e) {
+      total += e.amount;
+      paid[e.payer] += e.amount; bal[e.payer] += e.amount;
+      var n = e.shares.length, base = Math.floor(e.amount / n), rem = e.amount - base * n;
+      e.shares.forEach(function (id, i) {
+        var part = base + (i < rem ? 1 : 0);
+        owed[id] += part; bal[id] -= part;
+      });
+    });
+    var cr = [], db = [];
+    state.people.forEach(function (p) {
+      if (bal[p.id] > 0) cr.push({id:p.id, v:bal[p.id]});
+      else if (bal[p.id] < 0) db.push({id:p.id, v:-bal[p.id]});
+    });
+    cr.sort(function (a, b) { return b.v - a.v; }); db.sort(function (a, b) { return b.v - a.v; });
+    var tx = [], i = 0, j = 0;
+    while (i < db.length && j < cr.length) {
+      var pay = Math.min(db[i].v, cr[j].v);
+      tx.push({from:db[i].id, to:cr[j].id, v:pay});
+      db[i].v -= pay; cr[j].v -= pay;
+      if (db[i].v === 0) i++;
+      if (cr[j].v === 0) j++;
+    }
+    return {bal:bal, paid:paid, owed:owed, total:total, tx:tx};
+  }
+
+  function renderResult(c) {
+    var el = $("resultCard");
+    if (!state.expenses.length) {
+      el.innerHTML = "<h2>Kết quả</h2><p class='empty'>Thêm vài người và khoản chi, kết quả ai trả ai sẽ hiện ở đây.</p>";
+      return;
+    }
+    var h = "<h2>Ai cần trả ai?</h2>";
+    if (!c.tx.length) h += "<div class='done'>Mọi người đã huề nhau, không ai nợ ai.</div>";
+    else {
+      h += "<ul class='settle'>" + c.tx.map(function (t) {
+        return "<li><strong>" + esc(nameOf(t.from)) + "</strong><span class='arrow' aria-label='trả cho'>→</span><strong>" + esc(nameOf(t.to)) +
+          "</strong><span class='amt num'>" + money(t.v) + "</span></li>";
+      }).join("") + "</ul>";
+    }
+    h += "<ul class='bal'>" + state.people.map(function (p) {
+      var b = c.bal[p.id], cls = b > 0 ? "pos" : b < 0 ? "neg" : "muted";
+      var txt = b > 0 ? "được nhận " + money(b) : b < 0 ? "cần trả " + money(-b) : "huề";
+      return "<li><span>" + esc(p.name) + " <span class='muted small num'>đã chi " + money(c.paid[p.id]) + " · phần của mình " + money(c.owed[p.id]) +
+        "</span></span><span class='" + cls + " num'>" + txt + "</span></li>";
+    }).join("") + "</ul>";
+    h += "<div class='actions'><button type='button' class='primary' id='copyBtn'>Sao chép để gửi nhóm chat</button></div><p class='small muted' id='copyMsg' style='margin:8px 0 0'></p>";
+    el.innerHTML = h;
+    $("copyBtn").onclick = function () { copyText(buildText(c)); };
+  }
+
+  function buildText(c) {
+    var lines = ["Chia bill - tổng " + money(c.total) + " (" + state.people.length + " người)"];
+    if (!c.tx.length) lines.push("Không ai nợ ai.");
+    c.tx.forEach(function (t) { lines.push("• " + nameOf(t.from) + " trả " + nameOf(t.to) + " " + money(t.v)); });
+    return lines.join("\n");
+  }
+  function copyText(text) {
+    var msg = $("copyMsg");
+    function fallback() {
+      msg.textContent = "Không tự sao chép được. Bôi đen và copy đoạn sau: " + text.replace(/\n/g, " ");
+    }
+    try {
+      navigator.clipboard.writeText(text).then(function () { msg.textContent = "Đã sao chép. Dán vào Zalo/Messenger là xong."; }, fallback);
+    } catch (e) { fallback(); }
+  }
+
+  function renderPeople() {
+    $("chips").innerHTML = state.people.length ? state.people.map(function (p) {
+      return "<span class='chip'>" + esc(p.name) + "<button type='button' data-del-person='" + p.id + "' aria-label='Xoá " + esc(p.name) + "'>×</button></span>";
+    }).join("") : "<span class='muted'>Chưa có ai. Thêm ít nhất 2 người.</span>";
+    var keep = $("expPayer").value;
+    $("expPayer").innerHTML = state.people.map(function (p) { return "<option value='" + p.id + "'>" + esc(p.name) + "</option>"; }).join("");
+    if (keep && state.people.some(function (p) { return p.id === keep; })) $("expPayer").value = keep;
+    var checked = {};
+    document.querySelectorAll("#expShares input").forEach(function (i) { checked[i.value] = i.checked; });
+    $("expShares").innerHTML = state.people.map(function (p) {
+      var on = checked.hasOwnProperty(p.id) ? checked[p.id] : true;
+      return "<label><input type='checkbox' value='" + p.id + "'" + (on ? " checked" : "") + "> " + esc(p.name) + "</label>";
+    }).join("");
+  }
+
+  function renderExpenses(c) {
+    var el = $("expList");
+    if (!state.expenses.length) { el.innerHTML = "<p class='empty'>Chưa có khoản chi nào.</p>"; return; }
+    el.innerHTML = "<ul class='exp'>" + state.expenses.map(function (e) {
+      return "<li><div class='main'><div class='t'>" + esc(e.title) + "</div><div class='small muted'>" + esc(nameOf(e.payer)) +
+        " trả · chia cho " + (e.shares.length === state.people.length ? "cả nhóm" : e.shares.map(function (id) { return esc(nameOf(id)); }).join(", ")) +
+        " (" + money(e.amount / e.shares.length) + "/người)</div></div><div class='a num'>" + money(e.amount) +
+        "</div><button type='button' class='ghost' data-del-exp='" + e.id + "' aria-label='Xoá khoản " + esc(e.title) + "'>Xoá</button></li>";
+    }).join("") + "</ul><div class='total num'><span>Tổng cộng</span><span>" + money(c.total) + "</span></div>";
+  }
+
+  function render() {
+    $("banner").hidden = !state.example;
+    renderPeople();
+    var c = compute();
+    renderResult(c);
+    renderExpenses(c);
+  }
+
+  $("personForm").addEventListener("submit", function (ev) {
+    ev.preventDefault();
+    var name = $("personName").value.trim(), err = $("personErr");
+    if (!name) { err.textContent = "Hãy nhập tên."; return; }
+    if (state.people.some(function (p) { return p.name.toLowerCase() === name.toLowerCase(); })) { err.textContent = "Tên này đã có trong nhóm."; return; }
+    err.textContent = "";
+    state.people.push({id:uid(), name:name});
+    $("personName").value = ""; save(); render(); $("personName").focus();
+  });
+
+  document.addEventListener("click", function (ev) {
+    var t = ev.target.closest("button");
+    if (!t) return;
+    if (t.dataset.delPerson) {
+      var id = t.dataset.delPerson;
+      var used = state.expenses.some(function (e) { return e.payer === id || e.shares.indexOf(id) > -1; });
+      if (used) { $("personErr").textContent = nameOf(id) + " đang có trong khoản chi. Hãy xoá các khoản đó trước."; return; }
+      $("personErr").textContent = "";
+      state.people = state.people.filter(function (p) { return p.id !== id; });
+      save(); render();
+    } else if (t.dataset.delExp) {
+      state.expenses = state.expenses.filter(function (e) { return e.id !== t.dataset.delExp; });
+      save(); render();
+    }
+  });
+
+  $("expForm").addEventListener("submit", function (ev) {
+    ev.preventDefault();
+    var err = $("expErr"), title = $("expTitle").value.trim(), amount = parseMoney($("expAmount").value);
+    var shares = Array.prototype.map.call(document.querySelectorAll("#expShares input:checked"), function (i) { return i.value; });
+    if (state.people.length < 2) { err.textContent = "Cần ít nhất 2 người trong nhóm."; return; }
+    if (!title) { err.textContent = "Hãy nhập chi cho việc gì."; return; }
+    if (isNaN(amount)) { err.textContent = "Số tiền chưa hợp lệ. Thử 450000 hoặc 450k."; return; }
+    if (!shares.length) { err.textContent = "Chọn ít nhất 1 người cùng chia."; return; }
+    err.textContent = "";
+    state.expenses.push({id:uid(), title:title, amount:amount, payer:$("expPayer").value, shares:shares});
+    $("expTitle").value = ""; $("expAmount").value = "";
+    save(); render(); $("expTitle").focus();
+  });
+
+  $("resetBtn").onclick = function () { state = {example:false, people:[], expenses:[]}; save(); render(); $("personName").focus(); };
+
+  render();
+})();
+</script>
+</body>
+</html>
